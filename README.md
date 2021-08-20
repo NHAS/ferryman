@@ -10,6 +10,7 @@ Using ferryman, you can open a local port and traffic any data out just as if yo
 Want to catch a regular reverse shell? But cant due to outbound firewall rules? 
 Just use ferryman to open a port on the target machines local host, and point your reverse shell to that. Easy beans. 
 
+This is a companion tool to https://github.com/NHAS/reverse_ssh
 
 # Usage
 
