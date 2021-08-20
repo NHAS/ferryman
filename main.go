@@ -134,8 +134,17 @@ func main() {
 
 	log.Println("Running copy operations")
 	go func() {
-		_, err = io.Copy(wbr, rsshCon)
-		check("Error write op: ", err)
+		buff := make([]byte, 8100)
+		for {
+			n, err := rsshCon.Read(buff)
+			if err != nil && err != io.EOF {
+				break
+			}
+			if n > 0 {
+				wbr.Write(buff[:n])
+			}
+		}
+
 		log.Println("Write thread Finished")
 	}()
 	go func() {
