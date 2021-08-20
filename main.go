@@ -12,6 +12,7 @@ import (
 	"net/http/cookiejar"
 	"os"
 	"os/signal"
+	"time"
 )
 
 func check(r string, err error) {
@@ -26,6 +27,7 @@ type WebReaderWriter struct {
 }
 
 func (wr *WebReaderWriter) Write(p []byte) (n int, err error) {
+
 	resp, err := wr.client.Post(wr.url+"?cmd=write", "application/octet-stream", bytes.NewBuffer(p))
 	if err != nil {
 		return 0, err
@@ -41,6 +43,7 @@ func (wr *WebReaderWriter) Write(p []byte) (n int, err error) {
 }
 
 func (wr *WebReaderWriter) Read(p []byte) (n int, err error) {
+
 	resp, err := wr.client.Post(wr.url+"?cmd=read", "text/plain", nil)
 	if err != nil {
 		return 0, err
@@ -76,12 +79,13 @@ func (wr *WebReaderWriter) Close() error {
 
 func NewWebReaderWriter(url, port string) (*WebReaderWriter, error) {
 
-	cert, err := tls.LoadX509KeyPair("certs/client.cert", "certs/client.key")
-	if err != nil {
-		log.Fatalf("server: loadkeys: %s", err)
-	}
+	// cert, err := tls.LoadX509KeyPair("certs/client.cert", "certs/client.key")
+	// if err != nil {
+	// 	log.Fatalf("server: loadkeys: %s", err)
+	// }
 
-	tlsConfig := &tls.Config{Certificates: []tls.Certificate{cert}, InsecureSkipVerify: true}
+	tlsConfig := &tls.Config{InsecureSkipVerify: true}
+	//tlsConfig.Certificates = []tls.Certificate{cert}
 
 	jar, err := cookiejar.New(nil)
 	if err != nil {
@@ -132,10 +136,26 @@ func main() {
 	go func() {
 		_, err = io.Copy(wbr, rsshCon)
 		check("Error write op: ", err)
+		log.Println("Write thread Finished")
 	}()
 	go func() {
-		_, err := io.Copy(rsshCon, wbr)
-		check("Error read op: ", err)
+
+		buff := make([]byte, 8100)
+		for {
+
+			n, err := wbr.Read(buff)
+			if err != nil && err != io.EOF {
+				check("Error read op: ", err)
+			}
+
+			if n > 0 {
+				rsshCon.Write(buff[:n])
+			}
+
+			time.Sleep(10 * time.Millisecond)
+
+		}
+
 	}()
 
 	<-c
