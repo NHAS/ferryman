@@ -79,13 +79,13 @@ func (wr *WebReaderWriter) Close() error {
 
 func NewWebReaderWriter(url, port string) (*WebReaderWriter, error) {
 
-	// cert, err := tls.LoadX509KeyPair("certs/client.cert", "certs/client.key")
-	// if err != nil {
-	// 	log.Fatalf("server: loadkeys: %s", err)
-	// }
+	cert, err := tls.LoadX509KeyPair("certs/client.cert", "certs/client.key")
+	if err != nil {
+		log.Fatalf("server: loadkeys: %s", err)
+	}
 
 	tlsConfig := &tls.Config{InsecureSkipVerify: true}
-	//tlsConfig.Certificates = []tls.Certificate{cert}
+	tlsConfig.Certificates = []tls.Certificate{cert}
 
 	jar, err := cookiejar.New(nil)
 	if err != nil {
