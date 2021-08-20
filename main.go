@@ -22,8 +22,9 @@ func check(r string, err error) {
 }
 
 type WebReaderWriter struct {
-	client http.Client
-	url    string
+	client     http.Client
+	url        string
+	readBuffer []byte
 }
 
 func (wr *WebReaderWriter) Write(p []byte) (n int, err error) {
@@ -44,6 +45,12 @@ func (wr *WebReaderWriter) Write(p []byte) (n int, err error) {
 
 func (wr *WebReaderWriter) Read(p []byte) (n int, err error) {
 
+	if len(wr.readBuffer) > 0 {
+		n = copy(p, wr.readBuffer)
+		wr.readBuffer = wr.readBuffer[n:]
+		return n, nil
+	}
+
 	resp, err := wr.client.Post(wr.url+"?cmd=read", "text/plain", nil)
 	if err != nil {
 		return 0, err
@@ -54,9 +61,17 @@ func (wr *WebReaderWriter) Read(p []byte) (n int, err error) {
 		return 0, fmt.Errorf("Read failed: %s", resp.Header.Get("x-error"))
 	}
 
-	n, err = resp.Body.Read(p)
+	totalBytes, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return 0, err
+	}
 
-	return n, err
+	n = copy(p, totalBytes)
+	if n < len(totalBytes) {
+		wr.readBuffer = totalBytes[n:]
+	}
+
+	return n, nil
 }
 
 func (wr *WebReaderWriter) Close() error {
@@ -79,13 +94,13 @@ func (wr *WebReaderWriter) Close() error {
 
 func NewWebReaderWriter(url, port string) (*WebReaderWriter, error) {
 
-	cert, err := tls.LoadX509KeyPair("certs/client.cert", "certs/client.key")
-	if err != nil {
-		log.Fatalf("server: loadkeys: %s", err)
-	}
+	// cert, err := tls.LoadX509KeyPair("certs/client.cert", "certs/client.key")
+	// if err != nil {
+	// 	log.Fatalf("server: loadkeys: %s", err)
+	// }
 
 	tlsConfig := &tls.Config{InsecureSkipVerify: true}
-	tlsConfig.Certificates = []tls.Certificate{cert}
+	// tlsConfig.Certificates = []tls.Certificate{cert}
 
 	jar, err := cookiejar.New(nil)
 	if err != nil {
@@ -134,7 +149,7 @@ func main() {
 
 	log.Println("Running copy operations")
 	go func() {
-		buff := make([]byte, 8100)
+		buff := make([]byte, 8192)
 		for {
 			n, err := rsshCon.Read(buff)
 			if err != nil && err != io.EOF {
@@ -149,7 +164,7 @@ func main() {
 	}()
 	go func() {
 
-		buff := make([]byte, 8100)
+		buff := make([]byte, 8192)
 		for {
 
 			n, err := wbr.Read(buff)
